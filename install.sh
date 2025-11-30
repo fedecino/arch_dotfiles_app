@@ -10,13 +10,13 @@ echo "Starting installation..."
 echo "Installing packages..."
 
 # Update system first
-# sudo pacman -Syu --noconfirm
+sudo pacman -Syu --noconfirm
 
 # Install Pacman packages
 if [ -f "$BACKUP_DIR/pkglist_pacman.txt" ]; then
     echo "Installing pacman packages..."
     # Filter out packages that might cause issues or are already installed base groups
-    # sudo pacman -S --needed --noconfirm - < "$BACKUP_DIR/pkglist_pacman.txt"
+    sudo pacman -S --needed --noconfirm - < "$BACKUP_DIR/pkglist_pacman.txt"
     echo "Skipping actual package installation in this script for safety. Uncomment lines to enable."
     echo "Command would be: sudo pacman -S --needed - < $BACKUP_DIR/pkglist_pacman.txt"
 fi
@@ -35,7 +35,7 @@ fi
 # Install AUR packages
 if [ -f "$BACKUP_DIR/pkglist_yay.txt" ]; then
     echo "Installing AUR packages..."
-    # yay -S --needed --noconfirm - < "$BACKUP_DIR/pkglist_yay.txt"
+    yay -S --needed --noconfirm - < "$BACKUP_DIR/pkglist_yay.txt"
     echo "Skipping actual AUR package installation. Uncomment lines to enable."
 fi
 
@@ -44,7 +44,7 @@ if [ -f "$BACKUP_DIR/pkglist_flatpak.txt" ]; then
     echo "Installing Flatpaks..."
     # Read line by line to install
     while read -r app; do
-        # flatpak install -y flathub "$app"
+        flatpak install -y flathub "$app"
         echo "Would install flatpak: $app"
     done < "$BACKUP_DIR/pkglist_flatpak.txt"
 fi
