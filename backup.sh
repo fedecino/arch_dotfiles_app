@@ -39,17 +39,28 @@ CONFIGS=(
     "gtk-3.0"
     "gtk-4.0"
     "dconf"
+    "autostart"
+    "btop"
+    "htop"
+    "swaync"
+    "wlogout"
 )
 
 for config in "${CONFIGS[@]}"; do
     if [ -d "$CONFIG_DIR/$config" ]; then
         echo "Backing up $config..."
-        # Use rsync to copy directory content
-        rsync -av --delete "$CONFIG_DIR/$config" "$BACKUP_DIR/.config/"
+        # Use rsync to copy directory content (dereferencing symlinks with -L)
+        rsync -avL --delete "$CONFIG_DIR/$config" "$BACKUP_DIR/.config/"
     else
         echo "Warning: $CONFIG_DIR/$config not found, skipping."
     fi
 done
+
+# Config Files (Individual)
+if [ -f "$CONFIG_DIR/mimeapps.list" ]; then
+    echo "Backing up mimeapps.list..."
+    cp "$CONFIG_DIR/mimeapps.list" "$BACKUP_DIR/.config/"
+fi
 
 # Home directory files
 HOME_FILES=(

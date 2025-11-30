@@ -211,6 +211,8 @@ qt5-wayland
 qt6-wayland
 qt6ct
 quadrapassel
+quickemu
+quickgui
 raider
 railway
 rclone

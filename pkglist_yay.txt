@@ -16,6 +16,8 @@ onlyoffice-bin
 paru
 python-pywalfox
 python-screeninfo
+quickemu
+quickgui
 rpcs3-bin
 slack-desktop
 spotify

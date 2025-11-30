@@ -64,6 +64,11 @@ CONFIGS=(
     "gtk-3.0"
     "gtk-4.0"
     "dconf"
+    "autostart"
+    "btop"
+    "htop"
+    "swaync"
+    "wlogout"
 )
 
 for config in "${CONFIGS[@]}"; do
@@ -79,6 +84,16 @@ for config in "${CONFIGS[@]}"; do
         echo "Warning: Config for $config not found in backup, skipping."
     fi
 done
+
+# Restore Config Files (Individual)
+if [ -f "$BACKUP_DIR/.config/mimeapps.list" ]; then
+    echo "Restoring mimeapps.list..."
+    if [ -f "$CONFIG_DIR/mimeapps.list" ]; then
+        echo "Backing up existing mimeapps.list..."
+        mv "$CONFIG_DIR/mimeapps.list" "$CONFIG_DIR/mimeapps.list.bak.$(date +%s)"
+    fi
+    cp "$BACKUP_DIR/.config/mimeapps.list" "$CONFIG_DIR/"
+fi
 
 # Restore Home directory files
 HOME_FILES=(
