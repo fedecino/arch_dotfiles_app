@@ -3,136 +3,144 @@
 # Define paths
 BACKUP_DIR="$(dirname "$(realpath "$0")")"
 CONFIG_DIR="$HOME/.config"
+ML4W_DIR="$HOME/ML4W"
+ML4W_REPO="https://github.com/mylinuxforwork/dotfiles.git"
 
 echo "Starting installation..."
 
-# 1. Install Packages
-echo "Installing packages..."
+# 1. Install ML4W Base Dependencies
+echo "-------------------------------------------------"
+echo "1. Setting up ML4W Base System"
+echo "-------------------------------------------------"
 
-# Update system first
-sudo pacman -Syu --noconfirm
+if [ -d "$ML4W_DIR" ]; then
+    echo "ML4W folder already exists at $ML4W_DIR."
+    read -p "Do you want to update it? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        cd "$ML4W_DIR"
+        git pull
+        cd -
+    fi
+else
+    echo "Cloning ML4W Dotfiles..."
+    git clone "$ML4W_REPO" "$ML4W_DIR"
+fi
+
+# Run ML4W setup script for dependencies
+if [ -f "$ML4W_DIR/setup/setup-arch.sh" ]; then
+    echo "Running ML4W Arch Setup script..."
+    # We use the non-interactive mode if possible or just let it run. 
+    # The setup script seems interactive, so we let the user interact with it if needed.
+    # However, to avoid getting stuck, we might want to check if we can automate it.
+    # For now, we assume user interaction is fine as per original script intent.
+    "$ML4W_DIR/setup/setup-arch.sh"
+else
+    echo "Error: ML4W setup script not found at $ML4W_DIR/setup/setup-arch.sh"
+    exit 1
+fi
+
+# 2. Install User Additional Packages
+echo "-------------------------------------------------"
+echo "2. Installing User Additional Packages"
+echo "-------------------------------------------------"
 
 # Install Pacman packages
 if [ -f "$BACKUP_DIR/pkglist_pacman.txt" ]; then
-    echo "Installing pacman packages..."
-    # Filter out packages that might cause issues or are already installed base groups
+    echo "Installing extra pacman packages..."
     sudo pacman -S --needed --noconfirm - < "$BACKUP_DIR/pkglist_pacman.txt"
-    echo "Skipping actual package installation in this script for safety. Uncomment lines to enable."
-    echo "Command would be: sudo pacman -S --needed - < $BACKUP_DIR/pkglist_pacman.txt"
 fi
 
-# Install Yay (if not installed)
-if ! command -v yay &> /dev/null; then
-    echo "Installing yay..."
-    sudo pacman -S --needed --noconfirm git base-devel
-    git clone https://aur.archlinux.org/yay.git /tmp/yay
-    cd /tmp/yay
-    makepkg -si --noconfirm
-    cd -
-    rm -rf /tmp/yay
-fi
-
-# Install AUR packages
+# Install Yay packages
 if [ -f "$BACKUP_DIR/pkglist_yay.txt" ]; then
-    echo "Installing AUR packages..."
-    yay -S --needed --noconfirm - < "$BACKUP_DIR/pkglist_yay.txt"
-    echo "Skipping actual AUR package installation. Uncomment lines to enable."
+    echo "Installing extra AUR packages..."
+    if command -v yay &> /dev/null; then
+        yay -S --needed --noconfirm - < "$BACKUP_DIR/pkglist_yay.txt"
+    elif command -v paru &> /dev/null; then
+        paru -S --needed --noconfirm - < "$BACKUP_DIR/pkglist_yay.txt"
+    else
+        echo "Warning: No AUR helper found (yay/paru). Skipping AUR packages."
+    fi
 fi
 
 # Install Flatpaks
 if [ -f "$BACKUP_DIR/pkglist_flatpak.txt" ]; then
     echo "Installing Flatpaks..."
-    # Read line by line to install
     while read -r app; do
-        flatpak install -y flathub "$app"
-        echo "Would install flatpak: $app"
+        if [ -n "$app" ]; then
+            flatpak install -y flathub "$app"
+        fi
     done < "$BACKUP_DIR/pkglist_flatpak.txt"
 fi
 
-# 2. Install ML4W Dotfiles
-echo "Installing ML4W Dotfiles..."
-if [ -d "$HOME/ML4W" ]; then
-    echo "ML4W folder already exists. Skipping clone."
-else
-    echo "Cloning ML4W Dotfiles..."
-    git clone https://github.com/mylinuxforwork/dotfiles.git "$HOME/ML4W"
-fi
+# 3. Merge Configurations
+echo "-------------------------------------------------"
+echo "3. Merging Configurations"
+echo "-------------------------------------------------"
 
-if [ -f "$HOME/ML4W/setup.sh" ]; then
-    echo "Starting ML4W Setup..."
-    "$HOME/ML4W/setup.sh"
-else
-    echo "Error: ML4W setup script not found."
-fi
-
-# 3. Restore Configs
-read -p "Do you want to copy configuration files? (y/n) " -n 1 -r
-echo    # (optional) move to a new line
+read -p "Do you want to proceed with copying configuration files? This will backup existing configs. (y/n) " -n 1 -r
+echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "Restoring config files..."
-
-    # List of .config directories to restore
-    CONFIGS=(
-        "hypr"
-        "kitty"
-        "waybar"
-        "rofi"
-        "zshrc"
-        "fastfetch"
-        "nvim"
-        "gtk-3.0"
-        "gtk-4.0"
-        "dconf"
-        "autostart"
-        "btop"
-        "htop"
-        "swaync"
-        "wlogout"
-    )
-
-    for config in "${CONFIGS[@]}"; do
-        if [ -d "$BACKUP_DIR/.config/$config" ]; then
-            echo "Restoring $config..."
-            # Backup existing config if it exists
-            if [ -d "$CONFIG_DIR/$config" ]; then
-                echo "Backing up existing $config to $CONFIG_DIR/${config}.bak.$(date +%s)"
-                mv "$CONFIG_DIR/$config" "$CONFIG_DIR/${config}.bak.$(date +%s)"
-            fi
-            cp -r "$BACKUP_DIR/.config/$config" "$CONFIG_DIR/"
-        else
-            echo "Warning: Config for $config not found in backup, skipping."
+    
+    # 3a. Copy ML4W Dotfiles first (Base)
+    echo "Applying ML4W dotfiles as base..."
+    if [ -d "$ML4W_DIR/dotfiles/.config" ]; then
+        cp -r "$ML4W_DIR/dotfiles/.config/"* "$CONFIG_DIR/"
+    else
+        echo "Warning: ML4W .config directory not found."
+    fi
+    
+    # Copy ML4W .zshrc if it exists (User wants to keep .bashrc but maybe try zsh)
+    if [ -f "$ML4W_DIR/dotfiles/.zshrc" ]; then
+        if [ -f "$HOME/.zshrc" ]; then
+            mv "$HOME/.zshrc" "$HOME/.zshrc.bak.$(date +%s)"
         fi
-    done
-
-    # Restore Config Files (Individual)
-    if [ -f "$BACKUP_DIR/.config/mimeapps.list" ]; then
-        echo "Restoring mimeapps.list..."
-        if [ -f "$CONFIG_DIR/mimeapps.list" ]; then
-            echo "Backing up existing mimeapps.list..."
-            mv "$CONFIG_DIR/mimeapps.list" "$CONFIG_DIR/mimeapps.list.bak.$(date +%s)"
-        fi
-        cp "$BACKUP_DIR/.config/mimeapps.list" "$CONFIG_DIR/"
+        cp "$ML4W_DIR/dotfiles/.zshrc" "$HOME/"
     fi
 
-    # Restore Home directory files
-    HOME_FILES=(
-        ".zshrc"
-        ".zshrc_custom"
-        ".bashrc"
-    )
-
-    for file in "${HOME_FILES[@]}"; do
-        if [ -f "$BACKUP_DIR/$file" ]; then
-            echo "Restoring $file..."
-            if [ -f "$HOME/$file" ]; then
-                 echo "Backing up existing $file to $HOME/${file}.bak.$(date +%s)"
-                 mv "$HOME/$file" "$HOME/${file}.bak.$(date +%s)"
+    # 3b. Overwrite with User Dotfiles
+    echo "Overwriting with User dotfiles..."
+    
+    # We iterate over the user's .config directory in the repo
+    if [ -d "$BACKUP_DIR/.config" ]; then
+        for config_path in "$BACKUP_DIR/.config/"*; do
+            config_name=$(basename "$config_path")
+            echo "Restoring User config: $config_name"
+            
+            # If it's a directory, we copy recursively, overwriting ML4W's version
+            if [ -d "$config_path" ]; then
+                # We don't backup here again because we just established ML4W as base.
+                # But if there was a pre-existing config that wasn't ML4W, it might be lost?
+                # The user's request implies they want their repo to be the source of truth for these folders.
+                
+                # Ensure parent dir exists
+                mkdir -p "$CONFIG_DIR"
+                
+                # Copy and overwrite
+                cp -r "$config_path" "$CONFIG_DIR/"
+            elif [ -f "$config_path" ]; then
+                cp "$config_path" "$CONFIG_DIR/"
             fi
-            cp "$BACKUP_DIR/$file" "$HOME/"
+        done
+    fi
+
+    # Restore .bashrc from User Repo if exists
+    if [ -f "$BACKUP_DIR/.bashrc" ]; then
+        echo "Restoring User .bashrc..."
+        if [ -f "$HOME/.bashrc" ]; then
+             mv "$HOME/.bashrc" "$HOME/.bashrc.bak.$(date +%s)"
         fi
-    done
+        cp "$BACKUP_DIR/.bashrc" "$HOME/"
+    fi
+
+    # Restore mimeapps.list specifically if not covered
+    if [ -f "$BACKUP_DIR/mimeapps.list" ]; then
+         cp "$BACKUP_DIR/mimeapps.list" "$CONFIG_DIR/"
+    fi
+
 else
-    echo "Skipping configuration restoration."
+    echo "Skipping configuration merge."
 fi
 
-echo "Installation complete! Please restart your shell or reboot."
+echo "Installation and Merge Complete!"
+echo "Please reboot your system to apply all changes."
