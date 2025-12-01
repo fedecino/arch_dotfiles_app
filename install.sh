@@ -49,68 +49,90 @@ if [ -f "$BACKUP_DIR/pkglist_flatpak.txt" ]; then
     done < "$BACKUP_DIR/pkglist_flatpak.txt"
 fi
 
-# 2. Restore Configs
-echo "Restoring config files..."
-
-# List of .config directories to restore
-CONFIGS=(
-    "hypr"
-    "kitty"
-    "waybar"
-    "rofi"
-    "zshrc"
-    "fastfetch"
-    "nvim"
-    "gtk-3.0"
-    "gtk-4.0"
-    "dconf"
-    "autostart"
-    "btop"
-    "htop"
-    "swaync"
-    "wlogout"
-)
-
-for config in "${CONFIGS[@]}"; do
-    if [ -d "$BACKUP_DIR/.config/$config" ]; then
-        echo "Restoring $config..."
-        # Backup existing config if it exists
-        if [ -d "$CONFIG_DIR/$config" ]; then
-            echo "Backing up existing $config to $CONFIG_DIR/${config}.bak.$(date +%s)"
-            mv "$CONFIG_DIR/$config" "$CONFIG_DIR/${config}.bak.$(date +%s)"
-        fi
-        cp -r "$BACKUP_DIR/.config/$config" "$CONFIG_DIR/"
-    else
-        echo "Warning: Config for $config not found in backup, skipping."
-    fi
-done
-
-# Restore Config Files (Individual)
-if [ -f "$BACKUP_DIR/.config/mimeapps.list" ]; then
-    echo "Restoring mimeapps.list..."
-    if [ -f "$CONFIG_DIR/mimeapps.list" ]; then
-        echo "Backing up existing mimeapps.list..."
-        mv "$CONFIG_DIR/mimeapps.list" "$CONFIG_DIR/mimeapps.list.bak.$(date +%s)"
-    fi
-    cp "$BACKUP_DIR/.config/mimeapps.list" "$CONFIG_DIR/"
+# 2. Install ML4W Dotfiles
+echo "Installing ML4W Dotfiles..."
+if [ -d "$HOME/ML4W" ]; then
+    echo "ML4W folder already exists. Skipping clone."
+else
+    echo "Cloning ML4W Dotfiles..."
+    git clone https://github.com/mylinuxforwork/dotfiles.git "$HOME/ML4W"
 fi
 
-# Restore Home directory files
-HOME_FILES=(
-    ".zshrc"
-    ".zshrc_custom"
-    ".bashrc"
-)
+if [ -f "$HOME/ML4W/setup.sh" ]; then
+    echo "Starting ML4W Setup..."
+    "$HOME/ML4W/setup.sh"
+else
+    echo "Error: ML4W setup script not found."
+fi
 
-for file in "${HOME_FILES[@]}"; do
-    if [ -f "$BACKUP_DIR/$file" ]; then
-        echo "Restoring $file..."
-        if [ -f "$HOME/$file" ]; then
-             echo "Backing up existing $file to $HOME/${file}.bak.$(date +%s)"
-             mv "$HOME/$file" "$HOME/${file}.bak.$(date +%s)"
+# 3. Restore Configs
+read -p "Do you want to copy configuration files? (y/n) " -n 1 -r
+echo    # (optional) move to a new line
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Restoring config files..."
+
+    # List of .config directories to restore
+    CONFIGS=(
+        "hypr"
+        "kitty"
+        "waybar"
+        "rofi"
+        "zshrc"
+        "fastfetch"
+        "nvim"
+        "gtk-3.0"
+        "gtk-4.0"
+        "dconf"
+        "autostart"
+        "btop"
+        "htop"
+        "swaync"
+        "wlogout"
+    )
+
+    for config in "${CONFIGS[@]}"; do
+        if [ -d "$BACKUP_DIR/.config/$config" ]; then
+            echo "Restoring $config..."
+            # Backup existing config if it exists
+            if [ -d "$CONFIG_DIR/$config" ]; then
+                echo "Backing up existing $config to $CONFIG_DIR/${config}.bak.$(date +%s)"
+                mv "$CONFIG_DIR/$config" "$CONFIG_DIR/${config}.bak.$(date +%s)"
+            fi
+            cp -r "$BACKUP_DIR/.config/$config" "$CONFIG_DIR/"
+        else
+            echo "Warning: Config for $config not found in backup, skipping."
         fi
-        cp "$BACKUP_DIR/$file" "$HOME/"
+    done
+
+    # Restore Config Files (Individual)
+    if [ -f "$BACKUP_DIR/.config/mimeapps.list" ]; then
+        echo "Restoring mimeapps.list..."
+        if [ -f "$CONFIG_DIR/mimeapps.list" ]; then
+            echo "Backing up existing mimeapps.list..."
+            mv "$CONFIG_DIR/mimeapps.list" "$CONFIG_DIR/mimeapps.list.bak.$(date +%s)"
+        fi
+        cp "$BACKUP_DIR/.config/mimeapps.list" "$CONFIG_DIR/"
     fi
-done
+
+    # Restore Home directory files
+    HOME_FILES=(
+        ".zshrc"
+        ".zshrc_custom"
+        ".bashrc"
+    )
+
+    for file in "${HOME_FILES[@]}"; do
+        if [ -f "$BACKUP_DIR/$file" ]; then
+            echo "Restoring $file..."
+            if [ -f "$HOME/$file" ]; then
+                 echo "Backing up existing $file to $HOME/${file}.bak.$(date +%s)"
+                 mv "$HOME/$file" "$HOME/${file}.bak.$(date +%s)"
+            fi
+            cp "$BACKUP_DIR/$file" "$HOME/"
+        fi
+    done
+else
+    echo "Skipping configuration restoration."
+fi
 
 echo "Installation complete! Please restart your shell or reboot."
